@@ -6,17 +6,16 @@ from decouple import config
 import os
 
 TWITTER_MAX_CHAR = 280
-TEST_MODE = True
+TEST_MODE = False
 
 # Set up Twitter API authentication
+bearer_token = config('bearer_token')
 consumer_key = config('consumer_key')
 consumer_secret = config('consumer_secret')
 access_token = config('access_token')
 access_token_secret = config('access_token_secret')
 
-auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
-auth.set_access_token(access_token, access_token_secret)
-api = tweepy.API(auth)
+client = tweepy.Client(bearer_token,consumer_key,consumer_secret,access_token,access_token_secret)
 
 
 def save_progress(index_updates):
@@ -35,7 +34,7 @@ def load_progress():
         return {"album_index": 0, "track_index": 0, "tweet_index": 0}
 
 
-def tweet_lyrics(api, lyrics_dict, tweet_index, track_index, TEST_MODE):
+def tweet_lyrics(lyrics_dict, tweet_index, track_index, TEST_MODE):
     
     tweetlist = list(lyrics_dict.items())
     tweet = tweetlist[tweet_index][1]
@@ -46,7 +45,9 @@ def tweet_lyrics(api, lyrics_dict, tweet_index, track_index, TEST_MODE):
         print(f"\nTest mode - Tweet {tweet_index+1}: {tweet}")
     else:
         try:
-            api.update_status(tweet)
+            client.create_tweet(
+                text=tweet
+            )
             print(f"Tweet {tweet_index+1} sent: {tweet}")
         except Exception as e:
             print(f"Error sending tweet {tweet_index}: {e}")
@@ -88,9 +89,9 @@ def upload_album_art(url):
         return None
     else:
         response = requests.get(url)
-        media = api.media_upload("album_art.jpg", file=response.content)
-        return media.media_id
-
+        media = client.media_upload(response.content)
+        media_id = media["media_key"]
+        return media_id
 
 def get_lyrics(album_index, track_index, tweet_index):
     with open('The_Cure_songs.json', 'r') as file:
@@ -105,22 +106,22 @@ def get_lyrics(album_index, track_index, tweet_index):
     track = tracklist[track_index]
     
     lyrics = track['song']['lyrics']
-    media_id = None
+    
 
     # Upload album art only if it's the first song
-    if track_index == 0:
-        media_id = upload_album_art(album['cover_art_url'])
+    #if track_index == 0 & tweet_index == 0:
+    #    media_id = upload_album_art(album['cover_art_url'])
 
-    # Remove the first line that starts with a number
-    lyrics = re.sub(r'^\d+.*\n', '', lyrics)
-    # Add a line break after the album title and song title
-    lyrics = lyrics.replace(album['name'], album['name'] + '\n')
+    lyrics = re.sub(r'^\d+.*\n', '', lyrics) # Remove the first line that starts with a number
+    lyrics = lyrics.replace(album['name'], album['name'] + '\n') # Add a line break after the album title and song title
     lyrics = lyrics.replace(track['song']['title'], track['song']['title'] + '\n')
-    # Remove the unwanted text from the end of the song using a regular expression
-    lyrics = re.sub(r'You might also like\d+Embed', '', lyrics)
+    lyrics = re.sub(r'You might also like\d+Embed', '', lyrics) # Remove the unwanted text from the end of the song using a regular expression
+    lyrics = re.sub(r'You might also like', '', lyrics)  # Remove "You might also like"
+    lyrics = re.sub(r'39Embed', '', lyrics)  # Remove "39Embed"
+    lyrics = re.sub(r'\[.*?\]\n', '', lyrics) # remove [Chorus], [Outro], [Bridge], [Verse 2]
     
     lyrics_to_tweet = create_lyrics_dict(lyrics)
-    tweet_lyrics(api, lyrics_to_tweet, tweet_index, track_index, TEST_MODE)
+    tweet_lyrics(lyrics_to_tweet, tweet_index, track_index, TEST_MODE)
 
     #print(track_index,len(album['tracks']))
     # update progress
