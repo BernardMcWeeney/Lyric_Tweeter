@@ -6,7 +6,7 @@ from decouple import config
 import os
 
 TWITTER_MAX_CHAR = 280
-TEST_MODE = False
+TEST_MODE = True
 
 # Set up Twitter API authentication
 bearer_token = config('bearer_token')
@@ -113,8 +113,6 @@ def get_lyrics(album_index, track_index, tweet_index):
     #    media_id = upload_album_art(album['cover_art_url'])
 
     lyrics = re.sub(r'^\d+.*\n', '', lyrics) # Remove the first line that starts with a number
-    lyrics = lyrics.replace(album['name'], album['name'] + '\n') # Add a line break after the album title and song title
-    lyrics = lyrics.replace(track['song']['title'], track['song']['title'] + '\n')
     lyrics = re.sub(r'You might also like\d+Embed', '', lyrics) # Remove the unwanted text from the end of the song using a regular expression
     lyrics = re.sub(r'You might also like', '', lyrics)  # Remove "You might also like"
     lyrics = re.sub(r'39Embed', '', lyrics)  # Remove "39Embed"
